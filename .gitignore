@@ -1,1 +1,5 @@
-/.ipynb_checkpoints/
+/.ipynb_checkpoints
+/temp_models
+/runs
+/pretrained
+/__pycache__/

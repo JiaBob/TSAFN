@@ -9,7 +9,7 @@ from functions import device
 
 class TSAFN(nn.Module):
     def __init__(self, pretrained=False):
-        super(TSAFN, self).__init__()
+        super().__init__()
         self.conv1 = nn.Sequential(
             nn.Conv2d(5, 64, 7, 1, 3),
             nn.BatchNorm2d(64),
@@ -30,6 +30,7 @@ class TSAFN(nn.Module):
             nn.BatchNorm2d(3)
         )
 
+        self.pretrained = pretrained
         if pretrained and os.path.exists('./pretrained/TSAFN.pth'):
             self.load_state_dict(torch.load('./pretrained/TSAFN.pth')['state_dict'])
             current_val_loss = torch.load('./pretrained/TSAFN.pth')['val_loss']
@@ -45,7 +46,7 @@ class TSAFN(nn.Module):
 
 class TPN(nn.Module):
     def __init__(self, pretrained=False):
-        super(TPN, self).__init__()
+        super().__init__()
         self.conv1_1 = nn.Sequential(
             nn.Conv2d(3, 16, 3, 1, 1),
             nn.BatchNorm2d(16),
@@ -111,6 +112,8 @@ class TPN(nn.Module):
             nn.BatchNorm2d(1),
             nn.Sigmoid()
         )
+
+        self.pretrained = pretrained
         if pretrained and os.path.exists('./pretrained/TPN.pth'):
             self.load_state_dict(torch.load('./pretrained/TPN.pth')['state_dict'])
             current_val_loss = torch.load('./pretrained/TPN.pth')['val_loss']
@@ -150,10 +153,9 @@ class TPN(nn.Module):
 
 class SPN(nn.Module):
     def __init__(self, vgg='vgg11', pretrained=False):
-        super(SPN, self).__init__()
+        super().__init__()
 
         self.vgg = vgg
-        self.body = VGGNet(pretrained=True, model=vgg)
 
         self.side_output_layer1 = nn.Conv2d(64, 1, 1)
         self.side_output_layer2 = nn.Conv2d(128, 1, 1)
@@ -163,12 +165,15 @@ class SPN(nn.Module):
 
         self.fusion = nn.Conv2d(5, 1, 1)
 
+        self.pretrained = pretrained
         if pretrained and os.path.exists('./pretrained/SPN.pth'):
             vgg = torch.load('./pretrained/SPN.pth')['vgg']
             self.body = VGGNet(pretrained=True, model=vgg)
             self.load_state_dict(torch.load('./pretrained/SPN.pth')['state_dict'])
             current_val_loss = torch.load('./pretrained/SPN.pth')['val_loss']
             print('Finish loading pre-trained data, current validation loss is {:1.5f}'.format(current_val_loss))
+        else:
+            self.body = VGGNet(pretrained=True, model=vgg)
 
     def forward(self, x):
         N, C, h, w = x.size()
@@ -269,26 +274,42 @@ cfg = {
 
 class Combination(nn.Module):
     def __init__(self, vgg, pretrained=True, separate=True):
+        super().__init__()
+
+        self.pretrained = pretrained
         if pretrained:
             if separate and os.path.exists('./pretrained/SPN.pth') and os.path.exists('./pretrained/TPN.pth') \
                     and os.path.exists('./pretrained/TSAFN.pth'):
 
-                vgg = torch.load('./pretrained/SPN.pth')['vgg']
-                self.spn = SPN(vgg)
-                self.spn.load_state_dict(torch.load('./pretrained/SPN.pth')['state_dict']).to(device)
+                self.vgg = torch.load('./pretrained/SPN.pth')['vgg']
+                self.spn = SPN(self.vgg)
+                self.spn.load_state_dict(torch.load('./pretrained/SPN.pth')['state_dict'])
+                loss_spn = torch.load('./pretrained/SPN.pth')['val_loss']
 
                 self.tpn = TPN()
-                self.tpn.load_state_dict(torch.load('./pretrained/TPN.pth')['state_dict']).to(device)
+                self.tpn.load_state_dict(torch.load('./pretrained/TPN.pth')['state_dict'])
+                loss_tpn = torch.load('./pretrained/TPN.pth')['val_loss']
 
                 self.tsafn = TSAFN()
-                self.tsafn.load_state_dict(torch.load('./pretrained/TSAFN.pth')['state_dict']).to(device)
+                self.tsafn.load_state_dict(torch.load('./pretrained/TSAFN.pth')['state_dict'])
+                loss_tsafn = torch.load('./pretrained/TSAFN.pth')['val_loss']
 
-                current_val_loss = torch.load('./pretrained/TSAFN.pth')['val_loss']
-                print('Finish loading pre-trained data, current validation loss is {:1.5f}'.format(current_val_loss))
+                current_val_loss = 0.6 * loss_tsafn + 0.2 * (loss_spn + loss_tpn)
+                print('Finish loading pre-trained data from SPN(loss:{:1.5f}), '
+                      'TPN(loss:{:1.5f}) and TSAFN(loss:{:1.5f}  \n '
+                      'overall loss is {:1.5f}).'.format(loss_spn, loss_tpn, loss_tsafn, current_val_loss))
+
             if not separate and os.path.exists('./pretrained/Combination.pth'):
-                vgg = torch.load('./pretrained/Combination.pth')['vgg']
+                self.vgg = torch.load('./pretrained/Combination.pth')['vgg']
+                self.spn = SPN(self.vgg)
+                self.tpn = TPN()
+                self.tsafn = TSAFN()
+                self.load_state_dict(torch.load('./pretrained/combination.pth')['state_dict'])
+                current_val_loss = torch.load('./pretrained/combination.pth')['val_loss']
+                print('Finish loading pre-trained data, current validation loss is {:1.5f}'.format(current_val_loss))
         else:
-            self.spn = SPN(vgg)
+            self.vgg = vgg
+            self.spn = SPN(self.vgg)
             self.tpn = TPN()
             self.tsafn = TSAFN()
 
