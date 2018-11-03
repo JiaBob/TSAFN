@@ -1,100 +1,138 @@
-import torch
+import numpy as np
 from torch.utils.data import Dataset
 from PIL import Image
 import glob, os, copy, random
+from torchvision import transforms
+
+
+class SplitData:
+    def __init__(self, path, unknown=False, split_ratio={'train': 0.65, 'val': 0.1, 'test': 0.25}):
+        self.category = {}
+        self.name = {'input', 'target_spn', 'target_tpn', 'target_tsafn'}
+        self.modeset = ['train', 'val', 'test']
+        self.unknown = unknown
+
+        if not self.unknown:
+            check_folder = set()
+            for directory, folders, _ in os.walk(path):
+                for f in folders:
+                    self.category[f] = glob.glob(os.path.join(directory, f) + '\\*')
+                    check_folder.add(f)
+                break  # only retrieve one level
+
+            assert not (self.name - check_folder), 'folder name must be same as declared in self.name'
+            assert sum(split_ratio.values()) == 1, 'the summation of values in split_ratio must be one'
+
+            self.total = len(self.category['input'])
+
+            index_shuffle = list(range(self.total))
+            random.shuffle(index_shuffle)
+
+            train_amount = int(self.total * split_ratio['train'])
+            val_amount = int(self.total * split_ratio['val'])
+            self.amount = {'train': train_amount,
+                           'val': val_amount,
+                           'test': self.total - train_amount - val_amount}  # must use minus, otherwise not full.
+
+            index_train = index_shuffle[: self.amount['train']]
+            index_val = index_shuffle[self.amount['train']: self.amount['train'] + self.amount['val']]
+            index_test = index_shuffle[self.amount['train'] + self.amount['val']:]
+
+            # the file retrieval order is not sequentially from 1 to end, but may be like 1, 10, 11, ... , 2, 20 ..
+            # this part is to align the image index into sequential order for target_SPN and target_TSAFN
+            target_length = len(self.category['target_spn'])
+            temp1 = [0 for i in range(target_length)]
+            temp2 = copy.deepcopy(temp1)
+            for i in range(target_length):
+                img_path = self.category['target_spn'][i]
+                _, img_name = os.path.split(img_path)
+                img_index = int(img_name.split('.')[0])
+                temp1[img_index] = img_path
+
+                img_path = self.category['target_tsafn'][i]
+                _, img_name = os.path.split(img_path)
+                img_index = int(img_name.split('.')[0])
+                temp2[img_index] = img_path
+
+            self.category['target_spn'] = temp1
+            self.category['target_tsafn'] = temp2
+
+            self.collection = {'train': ([[0 for i in range(4)] for i in range(self.amount['train'])], index_train),
+                               'val': ([[0 for i in range(4)] for i in range(self.amount['val'])], index_val),
+                               'test': ([[0 for i in range(4)] for i in range(self.amount['test'])], index_test)}
+
+            for m in self.modeset:
+                for subset_index, alldata_index in enumerate(self.collection[m][1]):
+                    _, img_name = os.path.split(self.category['input'][alldata_index])
+                    img_index = int(img_name.split('_')[0])
+                    self.collection[m][0][subset_index] = [self.category['input'][alldata_index],
+                                                           self.category['target_tpn'][alldata_index],
+                                                           self.category['target_spn'][img_index],
+                                                           self.category['target_tsafn'][img_index]]
+        else:
+            img_path = glob.glob(path + '\\*')
+            self.collection = {'unknown': img_path}
+
+
+    def __call__(self, mode):
+        return SmoothData(self.collection[mode], mode)
 
 
 class SmoothData(Dataset):
-    def __init__(self, path, split_ratio={'train': 0.65, 'val': 0.1, 'test': 0.25}, transform=None):
-        self.transforms = transform
-        self.category = {}
-        self.name = {'input', 'target_SPN', 'target_TPN', 'target_TSAFN'}
-        self.mode = None
-        self.modeset = ['train', 'val', 'test']
-
-        check_folder = set()
-        for directory, folders, _ in os.walk(path):
-            for f in folders:
-                self.category[f] = glob.glob(os.path.join(directory, f) + '\\*')
-                check_folder.add(f)
-            break  # only retrieve one level
-
-        assert not (self.name - check_folder), 'folder name must be same as declared in self.name'
-        assert sum(split_ratio.values()) == 1, 'the summation of values in split_ratio must be one'
-
-        self.total = len(self.category['input'])
-
-        index_shuffle = list(range(self.total))
-        random.shuffle(index_shuffle)
-
-        train_amount = int(self.total * split_ratio['train'])
-        val_amount = int(self.total * split_ratio['val'])
-        self.amount = {'train': train_amount,
-                       'val': val_amount,
-                       'test': self.total - train_amount - val_amount}  # must use minus, otherwise not full.
-
-        index_train = index_shuffle[: self.amount['train']]
-        index_val = index_shuffle[self.amount['train']: self.amount['train'] + self.amount['val']]
-        index_test = index_shuffle[self.amount['train'] + self.amount['val']:]
-
-        # the file retrieval order is not sequentially from 1 to end, but may be like 1, 10, 11, ... , 2, 20 ..
-        # this part is to align the image index into sequential order for target_SPN and target_TSAFN
-        target_length = len(self.category['target_SPN'])
-        temp1 = [0 for i in range(target_length)]
-        temp2 = copy.deepcopy(temp1)
-        for i in range(target_length):
-            img_path = self.category['target_SPN'][i]
-            _, img_name = os.path.split(img_path)
-            img_index = int(img_name.split('.')[0])
-            temp1[img_index] = img_path
-
-            img_path = self.category['target_TSAFN'][i]
-            _, img_name = os.path.split(img_path)
-            img_index = int(img_name.split('.')[0])
-            temp2[img_index] = img_path
-        self.category['target_SPN'] = temp1
-        self.category['target_TSAFN'] = temp2
-
-        self.collection = {'train': ([[0 for i in range(4)] for i in range(self.amount['train'])], index_train),
-                           'val': ([[0 for i in range(4)] for i in range(self.amount['val'])], index_val),
-                           'test': ([[0 for i in range(4)] for i in range(self.amount['test'])], index_test)}
-
-        for m in self.modeset:
-            for subset_index, alldata_index in enumerate(self.collection[m][1]):
-                _, img_name = os.path.split(self.category['input'][alldata_index])
-                img_index = int(img_name.split('_')[0])
-
-                self.collection[m][0][subset_index] = [self.category['input'][alldata_index],
-                                                       self.category['target_TPN'][alldata_index],
-                                                       self.category['target_SPN'][img_index],
-                                                       self.category['target_TSAFN'][img_index]]
-
-    def __call__(self, mode):
-        assert mode in self.modeset, 'mode must be either train, val or test'
+    def __init__(self, dataset, mode='train'):
+        if mode == 'unknown':
+            self.dataset = dataset
+            self.dataindex = None
+        else:
+            self.dataset = dataset[0]
+            self.dataindex = dataset[1]
         self.mode = mode
-        return self
 
     def __len__(self):
-        if self.mode:
-            return self.amount[self.mode]
-        else:
-            raise Exception(
-                'Firstly, you must use self.setmode(mode) to set which data set (train, val, test) to be use.')
+        return len(self.dataset)
 
     def __getitem__(self, i):
-        # check if mode is set
-        len(self)
+        if self.mode == 'unknown':
+            inpu = Image.open(self.dataset[i])
+            rescale_size = (512, 512)
 
-        dataset = self.collection[self.mode][0]
-        inpu = Image.open(dataset[i][0])
-        target_TPN = Image.open(dataset[i][1])
-        target_SPN = Image.open(dataset[i][2])
-        target_TSAFN = Image.open(dataset[i][3])
+            inpu = transforms.functional.resize(inpu, rescale_size)
+            inpu = transforms.ToTensor()(inpu)
+            return inpu
 
-        if self.transforms:
-            inpu = self.transforms(inpu)
-            target_TPN = self.transforms(target_TPN)
-            target_SPN = self.transforms(target_SPN)
-            target_TSAFN = self.transforms(target_TSAFN)
+        else:
+            inpu = Image.open(self.dataset[i][0])
+            target_tpn = Image.open(self.dataset[i][1])
+            target_spn = Image.open(self.dataset[i][2])
+            target_tsafn = Image.open(self.dataset[i][3])
 
-        return {'input': inpu, 'TPN': target_TPN, 'SPN': target_SPN, 'TSAFN': target_TSAFN}
+            rescale_size = (400, 400)
+            inpu = transforms.functional.resize(inpu, rescale_size)
+            target_spn = transforms.functional.resize(target_spn, rescale_size)
+            target_tpn = transforms.functional.resize(target_tpn, rescale_size)
+            target_tsafn = transforms.functional.resize(target_tsafn, rescale_size)
+
+            # only do random crop on training set
+            if self.mode == 'train':
+                crop_size = (300, 300)
+                x, y = self.getCrop(rescale_size, crop_size)
+
+                inpu = transforms.functional.crop(inpu, x, y, *crop_size)
+                target_spn = transforms.functional.crop(target_spn, x, y, *crop_size)
+                target_tpn = transforms.functional.crop(target_tpn, x, y, *crop_size)
+                target_tsafn = transforms.functional.crop(target_tsafn, x, y, *crop_size)
+
+            inpu = transforms.ToTensor()(inpu)
+            target_tpn = transforms.ToTensor()(target_tpn)
+            target_spn = transforms.ToTensor()(target_spn)
+            target_tsafn = transforms.ToTensor()(target_tsafn)
+
+            return {'input': inpu, 'TPN': target_tpn, 'SPN': target_spn, 'TSAFN': target_tsafn}
+
+    def getCrop(self, size, crop_size):
+        cropH, cropW = crop_size
+        h, w = size
+        y = np.random.randint(h - cropH)
+        x = np.random.randint(w - cropH)
+        return x, y
+

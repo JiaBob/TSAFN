@@ -1,11 +1,12 @@
 import torch
 from torchvision.models.vgg import VGG
-from torchvision import models
 import torch.nn.functional as F
 from torch import nn
 
 import os
-from functions import device
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 
 class TSAFN(nn.Module):
     def __init__(self, pretrained=False):
@@ -27,7 +28,8 @@ class TSAFN(nn.Module):
         )
         self.conv4 = nn.Sequential(
             nn.Conv2d(16, 3, 5, 1, 2),
-            nn.BatchNorm2d(3)
+            nn.BatchNorm2d(3),
+            nn.ReLU(True)
         )
 
         self.pretrained = pretrained
@@ -41,7 +43,7 @@ class TSAFN(nn.Module):
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.conv4(x)
-        return x.sigmoid()
+        return x
 
 
 class TPN(nn.Module):
@@ -110,7 +112,7 @@ class TPN(nn.Module):
         self.conv4 = nn.Sequential(
             nn.Conv2d(16, 1, 3, 1, 1),
             nn.BatchNorm2d(1),
-            nn.Sigmoid()
+            nn.Tanh()
         )
 
         self.pretrained = pretrained
@@ -152,7 +154,7 @@ class TPN(nn.Module):
 
 
 class SPN(nn.Module):
-    def __init__(self, vgg='vgg11', pretrained=False):
+    def __init__(self, pretrained=False, vgg='vgg11'):
         super().__init__()
 
         self.vgg = vgg
@@ -207,13 +209,13 @@ class SPN(nn.Module):
         fusion = self.fusion(fuse)
 
         # will use cross_entropy_with_logit loss, so no need apply sigmoid on the final output.
-        return side_output1, side_output2, side_output3, side_output4, side_output5, fusion
+        return side_output1.sigmoid(), side_output2.sigmoid(), side_output3.sigmoid(), \
+               side_output4.sigmoid(), side_output5.sigmoid(), fusion.sigmoid()
 
 
 # the strategy to both get the structure and pretrained weight of in-built vgg
 class VGGNet(VGG):
     def __init__(self, pretrained=True, model='vgg11', requires_grad=True):
-
         super().__init__(make_layers(cfg[model]))
         self.ranges = ranges[model]
 
@@ -273,7 +275,7 @@ cfg = {
 
 
 class Combination(nn.Module):
-    def __init__(self, vgg, pretrained=True, separate=True):
+    def __init__(self, pretrained=True, vgg='vgg11', separate=True):
         super().__init__()
 
         self.pretrained = pretrained
@@ -301,7 +303,7 @@ class Combination(nn.Module):
 
             if not separate and os.path.exists('./pretrained/Combination.pth'):
                 self.vgg = torch.load('./pretrained/Combination.pth')['vgg']
-                self.spn = SPN(self.vgg)
+                self.spn = SPN(vgg=self.vgg)
                 self.tpn = TPN()
                 self.tsafn = TSAFN()
                 self.load_state_dict(torch.load('./pretrained/combination.pth')['state_dict'])
@@ -309,7 +311,7 @@ class Combination(nn.Module):
                 print('Finish loading pre-trained data, current validation loss is {:1.5f}'.format(current_val_loss))
         else:
             self.vgg = vgg
-            self.spn = SPN(self.vgg)
+            self.spn = SPN(vgg=self.vgg)
             self.tpn = TPN()
             self.tsafn = TSAFN()
 
