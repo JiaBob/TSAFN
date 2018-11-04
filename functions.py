@@ -235,7 +235,7 @@ class trainer:
             elif self.model_name == 'spn':
                 utils.save_image(output[-1], './unknown/{}.jpg'.format(i))  # only need the final output
             elif self.model_name == 'all':
-                utils.save_image(output[0], './unknown/{}spn.jpg'.format(i))  # only need the final output
+                utils.save_image(output[0][-1], './unknown/{}spn.jpg'.format(i))  # only need the final output
                 utils.save_image(output[1], './unknown/{}tpn.jpg'.format(i))  # only need the final output
                 utils.save_image(output[2], './unknown/{}tsafn.jpg'.format(i))  # only need the final output
             else:

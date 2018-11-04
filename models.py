@@ -324,16 +324,16 @@ class Combination(nn.Module):
                       'TPN(loss:{:1.5f}) and TSAFN(loss:{:1.5f}  \n '
                       'overall loss is {:1.5f}).'.format(loss_spn, loss_tpn, loss_tsafn, current_val_loss))
 
-            if not separate and os.path.exists('./pretrained/combination.pth'):
-                self.vgg = torch.load('./pretrained/combination.pth')['vgg']
+            if not separate and os.path.exists('./pretrained/Combination.pth'):
+                self.vgg = torch.load('./pretrained/Combination.pth')['vgg']
                 self.spn = SPN(vgg=self.vgg)
                 self.tpn = TPN()
                 self.tsafn = TSAFN()
-                self.load_state_dict(torch.load('./pretrained/combination.pth')['state_dict'])
+                self.load_state_dict(torch.load('./pretrained/Combination.pth')['state_dict'])
 
-                self.index = torch.load('./pretrained/combination.pth')['index']
+                self.index = torch.load('./pretrained/Combination.pth')['index']
 
-                current_val_loss = torch.load('./pretrained/combination.pth')['val_loss']
+                current_val_loss = torch.load('./pretrained/Combination.pth')['val_loss']
                 print('Finish loading pre-trained data, current validation loss is {:1.5f}'.format(current_val_loss))
         else:
             self.vgg = vgg
