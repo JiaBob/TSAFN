@@ -6,13 +6,17 @@ from torchvision import transforms
 
 
 class SplitData:
-    def __init__(self, path, unknown=False, split_ratio={'train': 0.65, 'val': 0.1, 'test': 0.25}):
+    def __init__(self, path, index=None, unknown=False, split_ratio={'train': 0.65, 'val': 0.1, 'test': 0.25}):
         self.category = {}
         self.name = {'input', 'target_spn', 'target_tpn', 'target_tsafn'}
         self.modeset = ['train', 'val', 'test']
         self.unknown = unknown
 
-        if not self.unknown:
+
+        if self.unknown:
+            img_path = glob.glob(path + '\\*')
+            self.collection = {'unknown': img_path}
+        else:
             check_folder = set()
             for directory, folders, _ in os.walk(path):
                 for f in folders:
@@ -33,10 +37,15 @@ class SplitData:
             self.amount = {'train': train_amount,
                            'val': val_amount,
                            'test': self.total - train_amount - val_amount}  # must use minus, otherwise not full.
-
-            index_train = index_shuffle[: self.amount['train']]
-            index_val = index_shuffle[self.amount['train']: self.amount['train'] + self.amount['val']]
-            index_test = index_shuffle[self.amount['train'] + self.amount['val']:]
+            if index:
+                index_train = index['train']
+                index_val = index['val']
+                index_test = index['test']
+            else:
+                index_train = index_shuffle[: self.amount['train']]
+                index_val = index_shuffle[self.amount['train']: self.amount['train'] + self.amount['val']]
+                index_test = index_shuffle[self.amount['train'] + self.amount['val']:]
+            self.index_dict = {'train': index_train, 'val': index_val, 'test': index_test}
 
             # the file retrieval order is not sequentially from 1 to end, but may be like 1, 10, 11, ... , 2, 20 ..
             # this part is to align the image index into sequential order for target_SPN and target_TSAFN
@@ -57,36 +66,29 @@ class SplitData:
             self.category['target_spn'] = temp1
             self.category['target_tsafn'] = temp2
 
-            self.collection = {'train': ([[0 for i in range(4)] for i in range(self.amount['train'])], index_train),
-                               'val': ([[0 for i in range(4)] for i in range(self.amount['val'])], index_val),
-                               'test': ([[0 for i in range(4)] for i in range(self.amount['test'])], index_test)}
+            self.collection = {'train': [[0 for i in range(4)] for i in range(self.amount['train'])],
+                               'val': [[0 for i in range(4)] for i in range(self.amount['val'])],
+                               'test': [[0 for i in range(4)] for i in range(self.amount['test'])]}
 
             for m in self.modeset:
-                for subset_index, alldata_index in enumerate(self.collection[m][1]):
+                for subset_index, alldata_index in enumerate(self.index_dict[m]):
                     _, img_name = os.path.split(self.category['input'][alldata_index])
                     img_index = int(img_name.split('_')[0])
-                    self.collection[m][0][subset_index] = [self.category['input'][alldata_index],
-                                                           self.category['target_tpn'][alldata_index],
-                                                           self.category['target_spn'][img_index],
-                                                           self.category['target_tsafn'][img_index]]
-        else:
-            img_path = glob.glob(path + '\\*')
-            self.collection = {'unknown': img_path}
+                    self.collection[m][subset_index] = [self.category['input'][alldata_index],
+                                                        self.category['target_tpn'][alldata_index],
+                                                        self.category['target_spn'][img_index],
+                                                        self.category['target_tsafn'][img_index]]
 
 
-    def __call__(self, mode):
-        return SmoothData(self.collection[mode], mode)
+    def __call__(self, mode, random_crop_size=None):
+        return SmoothData(self.collection[mode], mode, random_crop_size)
 
 
 class SmoothData(Dataset):
-    def __init__(self, dataset, mode='train'):
-        if mode == 'unknown':
-            self.dataset = dataset
-            self.dataindex = None
-        else:
-            self.dataset = dataset[0]
-            self.dataindex = dataset[1]
+    def __init__(self, dataset, mode='train', random_crop_size=None):
+        self.dataset = dataset
         self.mode = mode
+        self.random_crop_size = random_crop_size
 
     def __len__(self):
         return len(self.dataset)
@@ -112,15 +114,15 @@ class SmoothData(Dataset):
             target_tpn = transforms.functional.resize(target_tpn, rescale_size)
             target_tsafn = transforms.functional.resize(target_tsafn, rescale_size)
 
-            # only do random crop on training set
-            if self.mode == 'train':
-                crop_size = (300, 300)
-                x, y = self.getCrop(rescale_size, crop_size)
+            # only do random crop on training set and when random_crop_size is specified.
+            if self.mode == 'train' and self.random_crop_size:
 
-                inpu = transforms.functional.crop(inpu, x, y, *crop_size)
-                target_spn = transforms.functional.crop(target_spn, x, y, *crop_size)
-                target_tpn = transforms.functional.crop(target_tpn, x, y, *crop_size)
-                target_tsafn = transforms.functional.crop(target_tsafn, x, y, *crop_size)
+                x, y = self.getCrop(rescale_size, self.random_crop_size)
+
+                inpu = transforms.functional.crop(inpu, x, y, *self.random_crop_size)
+                target_spn = transforms.functional.crop(target_spn, x, y, *self.random_crop_size)
+                target_tpn = transforms.functional.crop(target_tpn, x, y, *self.random_crop_size)
+                target_tsafn = transforms.functional.crop(target_tsafn, x, y, *self.random_crop_size)
 
             inpu = transforms.ToTensor()(inpu)
             target_tpn = transforms.ToTensor()(target_tpn)

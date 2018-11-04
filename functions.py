@@ -1,6 +1,6 @@
 import time
 from torchvision import utils
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, sampler
 from tensorboardX import SummaryWriter
 
 from models import *
@@ -23,7 +23,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class trainer:
     def __init__(self, model_name, lr, optimizer, pretrained=False, separate=False, epochs=100, numloader=0,
-                 batchsize=(2, 1)):
+                 batchsize=(2, 1), sample_amount=None, random_crop_size=(64, 64)):
         self.model_name = model_name
         self.model_dict = {'spn': SPN, 'tpn': TPN, 'tsafn': TSAFN, 'all': Combination}
         self.iter_methods = {'spn': self.spn_one_iter, 'tpn': self.tpn_one_iter,
@@ -39,15 +39,23 @@ class trainer:
         self.model = nn.DataParallel(self.model).to(device)
         self.model_iter = self.iter_methods[model_name]
 
-        self.batchsize = batchsize
-        self.numloader = numloader
+        if pretrained:
+            self.index = self.model.module.index
+        else:
+            self.index = None
+
         self.data = None
+        self.sampler = None
+        self.sample_amount = sample_amount
+        self.random_crop_size = random_crop_size
         self.train_loader = None
         self.val_loader = None
         self.test_loader = None
         self.epochs = epochs
-        self.lr = lr
+        self.batchsize = batchsize
+        self.numloader = numloader
 
+        self.lr = lr
         self.optimizer = optimizer(self.model.parameters(), lr)
 
         self.is_train = True
@@ -57,8 +65,14 @@ class trainer:
         self.test_loss = None
 
     def train(self, path, verbose=True):
-        self.data = SplitData(path)
-        self.train_loader = DataLoader(self.data('train'), batch_size=self.batchsize[0], num_workers=self.numloader)
+        self.data = SplitData(path, self.index)
+        self.index = self.data.index_dict  # new index from non-pretrained version
+        print(self.index)
+        train_set = self.data('train', random_crop_size=self.random_crop_size)
+        if self.sample_amount:
+            self.sampler = sampler.WeightedRandomSampler(torch.ones(len(train_set)), self.sample_amount)
+        self.train_loader = DataLoader(train_set, batch_size=self.batchsize[0], sampler=self.sampler,
+                                       num_workers=self.numloader)
         self.val_loader = DataLoader(self.data('val'), batch_size=self.batchsize[1], num_workers=self.numloader)
         self.test_loader = DataLoader(self.data('test'), batch_size=1, num_workers=self.numloader)
 
@@ -83,11 +97,11 @@ class trainer:
             # codes below are for sustainability
             if val_loss < self.minimum_val_loss:
                 self.minimum_val_loss = val_loss
-                save_model(self.model, epoch + 1, train_loss, val_loss, self.optimizer.param_groups[0]['lr'],
-                           time.strftime('%dd-%Hh-%Mm', time.localtime(start_time)))
+                save_model(self.model, epoch + 1, train_loss, val_loss, self.index,
+                           self.optimizer.param_groups[0]['lr'], time.strftime('%dd-%Hh-%Mm', time.localtime(start_time)))
 
             # codes below are for visualization
-            loss_dict = {'loss': {'train': train_loss, 'validation': val_loss}}
+            loss_dict = {'{}_loss'.format(self.model_name): {'train': train_loss, 'validation': val_loss}}
             visualize(loss_dict, epoch, mode='scalar_dict')
 
             img_dict = {'{} results'.format(self.model_name): self.output_list}
@@ -282,15 +296,16 @@ def timeformat(s):
     return t
 
 
-def save_model(model, epoch, train_loss, val_loss, lr,  start_time):
+def save_model(model, epoch, train_loss, val_loss, index, lr, start_time):
     model_name = model.module.__class__.__name__
     pretrained = model.module.pretrained
     encap = {'lr': lr,  # Note this lr for the first optimizer model
-             'state_dict': model.state_dict(),
+             'state_dict': model.module.state_dict(),
              'train_loss': train_loss,
              'val_loss': val_loss,
              'epoch': epoch,
-             'pretrained': pretrained}
+             'pretrained': pretrained,
+             'index': index}
 
     # special attribute for SPN
     if model_name == 'SPN' or model_name == 'Combination':

@@ -21,14 +21,22 @@ parser.add_argument('-p', '--pretrained', type=int, choices=[1, 0], default=0, m
 parser.add_argument('-s', '--separate', type=int, choices=[1, 0], default='1', metavar='S',
                     help=' determine if train combination model from three separate pre-trained network '
                          'or one combination network. Only works when -p is 1 and -m is all. (default: 1)')
+parser.add_argument('-l', '--lr', type=float, default=1e-4, metavar='L',
+                    help='the learning rate')
 # parser.add_argument('-v', '--vgg', type=str, default='11', metavar='Vgg',
 #                     help='the configuration of vgg (default: 11)')
 parser.add_argument('-n', '--numloader', type=int, default=0, metavar='NL',
                     help='the num of CPU for data loading. 0 means only use one CPU. '
                          '(default: 0)')
-parser.add_argument('-b', '--batch', type=tuple, default=(2,1), metavar='NL',
+parser.add_argument('-b', '--batch', type=tuple, default=(2, 1), metavar='Ba',
                     help='the batch size of training (index zero) and validation (index one)'
                          '(default: (2, 1))')
+parser.add_argument('--samples', type=int, default=100, metavar='SA',
+                    help='how many samples to be sampled by using random sampler'
+                         '(default: 100)')
+parser.add_argument('-c', '--crop', type=tuple, default=(64, 64), metavar='CR',
+                    help='specifiy the random crop size on sampling.'
+                         '(default: (64, 64))')
 parser.add_argument('--path', type=str, default=default_path, metavar='P',
                     help='data path for unknown data set. Only needed when mode=unknown')
 
@@ -36,18 +44,20 @@ args = parser.parse_args()
 epochs = args.epochs
 mode = args.mode
 model = args.model
+lr = args.lr
 pretrained = args.pretrained
 numloader = args.numloader
 separate = args.separate
 path = args.path
 batch = args.batch
+random_crop_size = args.crop
 
 if __name__ == "__main__":
     optimizer = optim.Adam
-    t = trainer(model, 1e-3, optimizer, pretrained=pretrained, separate=separate, epochs=epochs, numloader=numloader,
-                batchsize=batch)
+    t = trainer(model, lr, optimizer, pretrained=pretrained, separate=separate, epochs=epochs, numloader=numloader,
+                batchsize=batch, sample_amount=100, random_crop_size=random_crop_size)
     if mode == 'train':
-        t.train()
+        t.train(path)
     elif mode == 'test':
         t.test()  # currently not support test with specific data set on pre-trained models
     else:

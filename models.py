@@ -1,5 +1,6 @@
 import torch
 from torchvision.models.vgg import VGG
+from torchvision import models
 import torch.nn.functional as F
 from torch import nn
 
@@ -29,14 +30,21 @@ class TSAFN(nn.Module):
         self.conv4 = nn.Sequential(
             nn.Conv2d(16, 3, 5, 1, 2),
             nn.BatchNorm2d(3),
-            nn.ReLU(True)
+            nn.Tanh()
         )
 
+        self.index = None
         self.pretrained = pretrained
         if pretrained and os.path.exists('./pretrained/TSAFN.pth'):
             self.load_state_dict(torch.load('./pretrained/TSAFN.pth')['state_dict'])
+
+            self.index = torch.load('./pretrained/TSAFN.pth')['index']
+
             current_val_loss = torch.load('./pretrained/TSAFN.pth')['val_loss']
             print('Finish loading pre-trained data, current validation loss is {:1.5f}'.format(current_val_loss))
+
+    def getindex(self):
+        return self.index
 
     def forward(self, x):
         x = self.conv1(x)
@@ -114,12 +122,18 @@ class TPN(nn.Module):
             nn.BatchNorm2d(1),
             nn.Tanh()
         )
-
+        self.index = None
         self.pretrained = pretrained
         if pretrained and os.path.exists('./pretrained/TPN.pth'):
             self.load_state_dict(torch.load('./pretrained/TPN.pth')['state_dict'])
+
+            self.index = torch.load('./pretrained/TPN.pth')['index']
+
             current_val_loss = torch.load('./pretrained/TPN.pth')['val_loss']
             print('Finish loading pre-trained data, current validation loss is {:1.5f}'.format(current_val_loss))
+
+    def getindex(self):
+        return self.index
 
     def forward(self, x):
         N, C, h, w = x.size()
@@ -172,10 +186,17 @@ class SPN(nn.Module):
             vgg = torch.load('./pretrained/SPN.pth')['vgg']
             self.body = VGGNet(pretrained=True, model=vgg)
             self.load_state_dict(torch.load('./pretrained/SPN.pth')['state_dict'])
+
+            self.index = torch.load('./pretrained/SPN.pth')['index']
+
             current_val_loss = torch.load('./pretrained/SPN.pth')['val_loss']
             print('Finish loading pre-trained data, current validation loss is {:1.5f}'.format(current_val_loss))
         else:
             self.body = VGGNet(pretrained=True, model=vgg)
+            self.index = None
+
+    def getindex(self):
+        return self.index
 
     def forward(self, x):
         N, C, h, w = x.size()
@@ -296,6 +317,8 @@ class Combination(nn.Module):
                 self.tsafn.load_state_dict(torch.load('./pretrained/TSAFN.pth')['state_dict'])
                 loss_tsafn = torch.load('./pretrained/TSAFN.pth')['val_loss']
 
+                self.index = None  # because those three network may be pre-trained by different data set
+
                 current_val_loss = 0.6 * loss_tsafn + 0.2 * (loss_spn + loss_tpn)
                 print('Finish loading pre-trained data from SPN(loss:{:1.5f}), '
                       'TPN(loss:{:1.5f}) and TSAFN(loss:{:1.5f}  \n '
@@ -307,6 +330,9 @@ class Combination(nn.Module):
                 self.tpn = TPN()
                 self.tsafn = TSAFN()
                 self.load_state_dict(torch.load('./pretrained/combination.pth')['state_dict'])
+
+                self.index = torch.load('./pretrained/combination.pth')['index']
+
                 current_val_loss = torch.load('./pretrained/combination.pth')['val_loss']
                 print('Finish loading pre-trained data, current validation loss is {:1.5f}'.format(current_val_loss))
         else:
@@ -314,6 +340,11 @@ class Combination(nn.Module):
             self.spn = SPN(vgg=self.vgg)
             self.tpn = TPN()
             self.tsafn = TSAFN()
+
+            self.index = None
+
+    def getindex(self):
+        return self.index
 
     def forward(self, x):
         output_tpn = self.tpn(x)
