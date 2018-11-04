@@ -82,7 +82,7 @@ class trainer:
             epoch_time = time.time()
 
             train_loss = self.model_iter(self.train_loader)
-            self.output_list = torch.empty([0])  # reset
+            self.output_list = torch.empty([0]).to(device)  # reset
             val_loss = self.model_iter(self.val_loader)
 
             epoch_time = time.time() - epoch_time
@@ -232,8 +232,12 @@ class trainer:
 
             if  self.model_name == 'tsafn':
                 utils.save_image(output, './unknown/{}.jpg'.format(i))
-            elif self.model_name == 'all' or self.model_name == 'spn':
+            elif self.model_name == 'spn':
                 utils.save_image(output[-1], './unknown/{}.jpg'.format(i))  # only need the final output
+            elif self.model_name == 'all':
+                utils.save_image(output[0], './unknown/{}spn.jpg'.format(i))  # only need the final output
+                utils.save_image(output[1], './unknown/{}tpn.jpg'.format(i))  # only need the final output
+                utils.save_image(output[2], './unknown/{}tsafn.jpg'.format(i))  # only need the final output
             else:
                 utils.save_image(output, './unknown/{}.jpg'.format(i))
             print('Finished {}/{}'.format(i + 1, amount))

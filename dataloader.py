@@ -27,7 +27,7 @@ class SplitData:
             assert sum(split_ratio.values()) == 1, 'the summation of values in split_ratio must be one'
 
             self.total = len(self.category['input'])
-            print(self.category)
+
             index_shuffle = list(range(self.total))
             random.shuffle(index_shuffle)
 

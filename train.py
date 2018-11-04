@@ -8,7 +8,7 @@ parser = argparse.ArgumentParser(description='Texture and Structure Awareness Ne
 parser.add_argument('-e', '--epochs', type=int, default=default_epochs, metavar='E',
                     help='the required total training epochs(default: {})'.format(default_epochs))
 parser.add_argument('--mode', type=str, default=default_mode, choices=['train', 'test', 'unknown'], metavar='Mode',
-                    help='train or test (default: train)')
+                    help='train or test (default: {})'.format(default_mode))
 parser.add_argument('-m', '--model', type=str, choices=['tpn', 'tsafn', 'spn', 'all'], default=default_model, metavar='M',
                     help='specify which model to use. They are tpn, spn, tsafn and all. (default: {})'.format(default_model))
 parser.add_argument('-p', '--pretrained', type=int, choices=[1, 0], default=default_pretrained, metavar='NL',

@@ -324,8 +324,8 @@ class Combination(nn.Module):
                       'TPN(loss:{:1.5f}) and TSAFN(loss:{:1.5f}  \n '
                       'overall loss is {:1.5f}).'.format(loss_spn, loss_tpn, loss_tsafn, current_val_loss))
 
-            if not separate and os.path.exists('./pretrained/Combination.pth'):
-                self.vgg = torch.load('./pretrained/Combination.pth')['vgg']
+            if not separate and os.path.exists('./pretrained/combination.pth'):
+                self.vgg = torch.load('./pretrained/combination.pth')['vgg']
                 self.spn = SPN(vgg=self.vgg)
                 self.tpn = TPN()
                 self.tsafn = TSAFN()
