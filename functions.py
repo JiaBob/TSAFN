@@ -67,7 +67,7 @@ class trainer:
     def train(self, path, verbose=True):
         self.data = SplitData(path, self.index)
         self.index = self.data.index_dict  # new index from non-pretrained version
-        print(self.index)
+
         train_set = self.data('train', random_crop_size=self.random_crop_size)
         if self.sample_amount:
             self.sampler = sampler.WeightedRandomSampler(torch.ones(len(train_set)), self.sample_amount)
