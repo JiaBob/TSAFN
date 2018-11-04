@@ -19,6 +19,7 @@ class SplitData:
             check_folder = set()
             for directory, folders, _ in os.walk(path):
                 for f in folders:
+                    print(os.path.join(directory, f) + '\\*')
                     self.category[f] = glob.glob(os.path.join(directory, f) + '\\*')
                     check_folder.add(f)
                 break  # only retrieve one level
