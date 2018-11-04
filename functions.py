@@ -60,7 +60,7 @@ class trainer:
 
         self.is_train = True
         self.minimum_val_loss = float('inf')
-        self.output_list = torch.empty([0])  # for temporarily store output image batch
+        self.output_list = torch.empty([0]).to(device)  # for temporarily store output image batch
         self.current_epoch = 0
         self.test_loss = None
 

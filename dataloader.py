@@ -13,14 +13,13 @@ class SplitData:
         self.unknown = unknown
 
         if self.unknown:
-            img_path = glob.glob(path + '\\*')
+            img_path = glob.glob(path + '/*')
             self.collection = {'unknown': img_path}
         else:
             check_folder = set()
             for directory, folders, _ in os.walk(path):
                 for f in folders:
-                    print(os.path.join(directory, f) + '\\*')
-                    self.category[f] = glob.glob(os.path.join(directory, f) + '\\*')
+                    self.category[f] = glob.glob(os.path.join(directory, f) + '/*')
                     check_folder.add(f)
                 break  # only retrieve one level
 
