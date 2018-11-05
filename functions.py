@@ -106,9 +106,11 @@ class trainer:
             img_dict = {'{} results'.format(self.model_name): self.output_list}
             if self.model_name == 'all':
                 visualize(img_dict, epoch, mode='image', nrow=5)
-            else:
+            elif self.model_name == 'tsafn':
                 visualize(img_dict, epoch, mode='image', nrow=3)
-
+            else:
+                visualize(img_dict, epoch, mode='image', nrow=2)
+                
         self.test()
 
     def tpn_one_iter(self, data_loader):
@@ -128,7 +130,7 @@ class trainer:
                 else:
                     # only display the first one from each minibatch
                     show = 1
-                    self.output_list = torch.cat((self.output_list, inpu[:show], target[:show], output[:show]), 0)
+                    self.output_list = torch.cat((self.output_list, target[:show], output[:show]), 0)
 
             loss_sum += loss.item()
         self.is_train = not self.is_train  # reverse mode
@@ -228,7 +230,7 @@ class trainer:
         self.is_train = False
         if path:
             self.data = SplitData(path, self.index)
-        self.test_loader = DataLoader(self.data('test'), batch_size=1, num_workers=self.numloader)
+        self.test_loader = DataLoader(self.data('test'), batch_size=100, num_workers=self.numloader)
         self.test_loss = self.model_iter(self.test_loader)
         print('Final test loss is {}'.format(self.test_loss))
 
@@ -349,7 +351,7 @@ def visualize(var_dict, epoch, mode='scalar', nrow=3):
             writer.add_scalar(label, var, epoch)
 
         elif mode == 'image':  # combine into grid
-            writer.add_image(label, utils.make_grid(var, nrow=2, padding=20))
+            writer.add_image(label, utils.make_grid(var, nrow=nrow, padding=20))
 
         else:
             raise Exception('invalid argument for \'mode\'. Please use either scalar, scalar_dict or image')

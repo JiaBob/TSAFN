@@ -30,7 +30,7 @@ class TSAFN(nn.Module):
         self.conv4 = nn.Sequential(
             nn.Conv2d(16, 3, 5, 1, 2),
             nn.BatchNorm2d(3),
-            nn.Tanh()
+            nn.Sigmoid()
         )
 
         self.index = None
@@ -120,7 +120,7 @@ class TPN(nn.Module):
         self.conv4 = nn.Sequential(
             nn.Conv2d(16, 1, 3, 1, 1),
             nn.BatchNorm2d(1),
-            nn.Tanh()
+            nn.Sigmoid()
         )
         self.index = None
         self.pretrained = pretrained
