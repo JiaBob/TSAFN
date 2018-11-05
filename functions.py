@@ -106,11 +106,10 @@ class trainer:
             img_dict = {'{} results'.format(self.model_name): self.output_list}
             if self.model_name == 'all':
                 visualize(img_dict, epoch, mode='image', nrow=5)
-            elif self.model_name == 'tsafn':
-                visualize(img_dict, epoch, mode='image', nrow=3)
             else:
-                visualize(img_dict, epoch, mode='image', nrow=2)
-                
+                visualize(img_dict, epoch, mode='image', nrow=3)
+
+
         self.test()
 
     def tpn_one_iter(self, data_loader):
@@ -130,7 +129,9 @@ class trainer:
                 else:
                     # only display the first one from each minibatch
                     show = 1
-                    self.output_list = torch.cat((self.output_list, target[:show], output[:show]), 0)
+                    temp_target = target[:show].expand(-1, 3, -1, -1)
+                    temp_output = output[:show].expand(-1, 3, -1, -1)
+                    self.output_list = torch.cat((self.output_list, inpu[:show], temp_target, temp_output), 0)
 
             loss_sum += loss.item()
         self.is_train = not self.is_train  # reverse mode
@@ -153,7 +154,9 @@ class trainer:
                     self.optimizer.step()
                 else:
                     show = 1
-                    self.output_list = torch.cat((self.output_list, target[:show], output[-1][:show]), 0)
+                    temp_target = target[-1][:show].expand(-1, 3, -1, -1)
+                    temp_output = output[:show].expand(-1, 3, -1, -1)
+                    self.output_list = torch.cat((self.output_list, inpu[:show], temp_target, temp_output), 0)
 
             loss_sum += loss.item()
         self.is_train = not self.is_train  # reverse mode
