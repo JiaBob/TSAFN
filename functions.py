@@ -154,8 +154,8 @@ class trainer:
                     self.optimizer.step()
                 else:
                     show = 1
-                    temp_target = target[-1][:show].expand(-1, 3, -1, -1)
-                    temp_output = output[:show].expand(-1, 3, -1, -1)
+                    temp_target = target[:show].expand(-1, 3, -1, -1)
+                    temp_output = output[-1][:show].expand(-1, 3, -1, -1)
                     self.output_list = torch.cat((self.output_list, inpu[:show], temp_target, temp_output), 0)
 
             loss_sum += loss.item()
