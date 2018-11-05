@@ -74,7 +74,6 @@ class trainer:
         self.train_loader = DataLoader(train_set, batch_size=self.batchsize[0], sampler=self.sampler,
                                        num_workers=self.numloader)
         self.val_loader = DataLoader(self.data('val'), batch_size=self.batchsize[1], num_workers=self.numloader)
-        self.test_loader = DataLoader(self.data('test'), batch_size=1, num_workers=self.numloader)
 
         start_time = time.time()
         for epoch in range(self.epochs):
@@ -105,7 +104,10 @@ class trainer:
             visualize(loss_dict, epoch, mode='scalar_dict')
 
             img_dict = {'{} results'.format(self.model_name): self.output_list}
-            visualize(img_dict, epoch, mode='image')
+            if self.model_name == 'all':
+                visualize(img_dict, epoch, mode='image', nrow=5)
+            else:
+                visualize(img_dict, epoch, mode='image', nrow=3)
 
         self.test()
 
@@ -115,8 +117,9 @@ class trainer:
             if self.is_train:
                 self.optimizer.zero_grad()
             with torch.set_grad_enabled(self.is_train):
-                output = self.model(x['input'].to(device))
+                inpu = x['input'].to(device)
                 target = x['TPN'].to(device)
+                output = self.model(inpu)
 
                 loss = F.mse_loss(output, target).to(device)
                 if self.is_train:
@@ -125,7 +128,7 @@ class trainer:
                 else:
                     # only display the first one from each minibatch
                     show = 1
-                    self.output_list = torch.cat((self.output_list, target[:show], output[:show]), 0)
+                    self.output_list = torch.cat((self.output_list, inpu[:show], target[:show], output[:show]), 0)
 
             loss_sum += loss.item()
         self.is_train = not self.is_train  # reverse mode
@@ -138,8 +141,9 @@ class trainer:
             if self.is_train:
                 self.optimizer.zero_grad()
             with torch.set_grad_enabled(self.is_train):
-                output = self.model(x['input'].to(device))
+                inpu = x['input'].to(device)
                 target = x['SPN'].to(device)
+                output = self.model(inpu)
 
                 loss = spn_loss(*output, target).to(device)
                 if self.is_train:
@@ -160,9 +164,10 @@ class trainer:
             if self.is_train:
                 self.optimizer.zero_grad()
             with torch.set_grad_enabled(self.is_train):
-                inpu = torch.cat((x['input'].to(device), x['TPN'].to(device), x['SPN'].to(device)), 1)
-                output = self.model(inpu)
+                inpu = x['input'].to(device)
+                cat = torch.cat((inpu, x['TPN'].to(device), x['SPN'].to(device)), 1)
                 target = x['TSAFN'].to(device)
+                output = self.model(cat)
 
                 loss = F.mse_loss(output, target).to(device)
                 if self.is_train:
@@ -170,7 +175,7 @@ class trainer:
                     self.optimizer.step()
                 else:
                     show = 1
-                    self.output_list = torch.cat((self.output_list, target[:show], output[:show]), 0)
+                    self.output_list = torch.cat((self.output_list, inpu[:show], target[:show], output[:show]), 0)
 
             loss_sum += loss.item()
         self.is_train = not self.is_train  # reverse mode
@@ -207,7 +212,7 @@ class trainer:
                     show = 1  # show the first one of each mini-batch
                     output_spn = output_spn[-1].expand(-1, 3, -1, -1)
                     output_tpn = output_tpn.expand(-1, 3, -1, -1)
-                    self.output_list = torch.cat((self.output_list, target_tsafn[:show], output_tsafn[:show],
+                    self.output_list = torch.cat((self.output_list, inpu[:show], target_tsafn[:show], output_tsafn[:show],
                                                   output_spn[:show], output_tpn[:show]), 0)
 
             loss_spn_sum += loss_spn.item()
@@ -219,9 +224,13 @@ class trainer:
         epoch_loss = loss_sum / len(data_loader)
         return epoch_loss
 
-    def test(self):
+    def test(self, path=None):
         self.is_train = False
+        if path:
+            self.data = SplitData(path, self.index)
+        self.test_loader = DataLoader(self.data('test'), batch_size=1, num_workers=self.numloader)
         self.test_loss = self.model_iter(self.test_loader)
+        print('Final test loss is {}'.format(self.test_loss))
 
     def test_unknown(self, path):
         self.data = SplitData(path, unknown=True)
@@ -318,7 +327,7 @@ def save_model(model, epoch, train_loss, val_loss, index, lr, start_time):
     torch.save(encap, './temp_models/{}_{}_{}.pth'.format(model_name, start_time, pretrained))
 
 
-def visualize(var_dict, epoch, mode='scalar'):
+def visualize(var_dict, epoch, mode='scalar', nrow=3):
     '''
     Description: visualize variables (single scalar, bunch of scalars or images) on tensorboard
 

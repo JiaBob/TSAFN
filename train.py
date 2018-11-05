@@ -58,6 +58,6 @@ if __name__ == "__main__":
     if mode == 'train':
         t.train(path)
     elif mode == 'test':
-        t.test()  # currently not support test with specific data set on pre-trained models
+        t.test(path)  # currently not support test with specific data set on pre-trained models
     else:
         t.test_unknown(path)
