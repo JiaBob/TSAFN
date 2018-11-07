@@ -107,6 +107,8 @@ class trainer:
 
             if self.model_name == 'all':
                 nrow = 10
+            elif self.model_name == 'spn':
+                nrow = 8
             else:
                 nrow = 3
             visualize(img_dict, epoch, mode='image', nrow=nrow)
@@ -155,17 +157,17 @@ class trainer:
                     self.optimizer.step()
                 else:
                     show = 1
-                    output_spn = output[-1].expand(-1, 3, -1, -1)
-                    output_spn1 = output[0].expand(-1, 3, -1, -1)
-                    output_spn2 = output[1].expand(-1, 3, -1, -1)
-                    output_spn3 = output[2].expand(-1, 3, -1, -1)
-                    output_spn4 = output[3].expand(-1, 3, -1, -1)
-                    output_spn5 = output[4].expand(-1, 3, -1, -1)
+                    output_spn = output[-1][:show].expand(-1, 3, -1, -1)
+                    output_spn1 = output[0][:show].expand(-1, 3, -1, -1)
+                    output_spn2 = output[1][:show].expand(-1, 3, -1, -1)
+                    output_spn3 = output[2][:show].expand(-1, 3, -1, -1)
+                    output_spn4 = output[3][:show].expand(-1, 3, -1, -1)
+                    output_spn5 = output[4][:show].expand(-1, 3, -1, -1)
                     self.output_list = torch.cat((self.output_list,
                                                   inpu[:show],
                                                   target[:show],
-                                                  output_spn1[:show], output_spn2[:show], output_spn3[:show],
-                                                  output_spn4[:show], output_spn5[:show], output_spn[:show]), 0)
+                                                  output_spn1, output_spn2, output_spn3,
+                                                  output_spn4, output_spn5, output_spn), 0)
 
             loss_sum += loss.item()
         self.is_train = not self.is_train  # reverse mode
@@ -189,17 +191,17 @@ class trainer:
                 else:
                     show = 1
                     target = target.expand(-1, 3, -1, -1)
-                    output_spn = output[-1].expand(-1, 3, -1, -1)
-                    output_spn1 = output[0].expand(-1, 3, -1, -1)
-                    output_spn2 = output[1].expand(-1, 3, -1, -1)
-                    output_spn3 = output[2].expand(-1, 3, -1, -1)
-                    output_spn4 = output[3].expand(-1, 3, -1, -1)
-                    output_spn5 = output[4].expand(-1, 3, -1, -1)
+                    output_spn = output[-1][:show].expand(-1, 3, -1, -1)
+                    output_spn1 = output[0][:show].expand(-1, 3, -1, -1)
+                    output_spn2 = output[1][:show].expand(-1, 3, -1, -1)
+                    output_spn3 = output[2][:show].expand(-1, 3, -1, -1)
+                    output_spn4 = output[3][:show].expand(-1, 3, -1, -1)
+                    output_spn5 = output[4][:show].expand(-1, 3, -1, -1)
                     self.output_list = torch.cat((self.output_list,
                                                   inpu[:show],
                                                   target[:show],
-                                                  output_spn1[:show], output_spn2[:show], output_spn3[:show],
-                                                  output_spn4[:show], output_spn5[:show], output_spn[:show]), 0)
+                                                  output_spn1, output_spn2, output_spn3,
+                                                  output_spn4, output_spn5, output_spn), 0)
 
             loss_sum += loss.item()
         self.is_train = not self.is_train  # reverse mode
@@ -258,20 +260,20 @@ class trainer:
                     self.optimizer.step()
                 else:  # only visualize validation data
                     show = 1  # show the first one of each mini-batch
-                    output_spn = output_spn[-1].expand(-1, 3, -1, -1)
-                    output_spn1 = output_spn[0].expand(-1, 3, -1, -1)
-                    output_spn2 = output_spn[1].expand(-1, 3, -1, -1)
-                    output_spn3 = output_spn[2].expand(-1, 3, -1, -1)
-                    output_spn4 = output_spn[3].expand(-1, 3, -1, -1)
-                    output_spn5 = output_spn[4].expand(-1, 3, -1, -1)
+                    output_spn = output_spn[-1][:show].expand(-1, 3, -1, -1)
+                    output_spn1 = output_spn[0][:show].expand(-1, 3, -1, -1)
+                    output_spn2 = output_spn[1][:show].expand(-1, 3, -1, -1)
+                    output_spn3 = output_spn[2][:show].expand(-1, 3, -1, -1)
+                    output_spn4 = output_spn[3][:show].expand(-1, 3, -1, -1)
+                    output_spn5 = output_spn[4][:show].expand(-1, 3, -1, -1)
                     output_tpn = output_tpn.expand(-1, 3, -1, -1)
                     self.output_list = torch.cat((self.output_list,
                                                   inpu[:show],
-                                                  target_tsafn[:show],
-                                                  output_tsafn[:show],
-                                                  output_spn1[:show], output_spn2[:show], output_spn3[:show],
-                                                  output_spn4[:show], output_spn5[:show], output_spn[:show],
-                                                  output_tpn[:show]), 0)
+                                                  target_tsafn,
+                                                  output_tsafn,
+                                                  output_spn1, output_spn2, output_spn3,
+                                                  output_spn4, output_spn5, output_spn,
+                                                  output_tpn), 0)
                     print('validation MSE loss is {}'.format(loss_tsafn))
 
             loss_spn_sum += loss_spn.item()
