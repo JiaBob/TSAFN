@@ -184,7 +184,7 @@ class SPN(nn.Module):
         self.pretrained = pretrained
         if pretrained and os.path.exists('./pretrained/SPN.pth'):
             vgg = torch.load('./pretrained/SPN.pth')['vgg']
-            self.body = VGGNet(pretrained=True, model=vgg)
+            self.body = VGGNet(pretrained=False, model=vgg)
             self.load_state_dict(torch.load('./pretrained/SPN.pth')['state_dict'])
 
             self.index = torch.load('./pretrained/SPN.pth')['index']
@@ -305,24 +305,11 @@ class Combination(nn.Module):
                     and os.path.exists('./pretrained/TSAFN.pth'):
 
                 self.vgg = torch.load('./pretrained/SPN.pth')['vgg']
-                self.spn = SPN(self.vgg)
-                self.spn.load_state_dict(torch.load('./pretrained/SPN.pth')['state_dict'])
-                loss_spn = torch.load('./pretrained/SPN.pth')['val_loss']
-
-                self.tpn = TPN()
-                self.tpn.load_state_dict(torch.load('./pretrained/TPN.pth')['state_dict'])
-                loss_tpn = torch.load('./pretrained/TPN.pth')['val_loss']
-
-                self.tsafn = TSAFN()
-                self.tsafn.load_state_dict(torch.load('./pretrained/TSAFN.pth')['state_dict'])
-                loss_tsafn = torch.load('./pretrained/TSAFN.pth')['val_loss']
+                self.spn = SPN(pretrained=True, vgg=self.vgg)
+                self.tpn = TPN(pretrained=True)
+                self.tsafn = TSAFN(pretrained=True)
 
                 self.index = None  # because those three network may be pre-trained by different data set
-
-                current_val_loss = 0.6 * loss_tsafn + 0.2 * (loss_spn + loss_tpn)
-                print('Finish loading pre-trained data from SPN(loss:{:1.5f}), '
-                      'TPN(loss:{:1.5f}) and TSAFN(loss:{:1.5f}  \n '
-                      'overall loss is {:1.5f}).'.format(loss_spn, loss_tpn, loss_tsafn, current_val_loss))
 
             if not separate and os.path.exists('./pretrained/Combination.pth'):
                 self.vgg = torch.load('./pretrained/Combination.pth')['vgg']

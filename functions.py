@@ -157,6 +157,7 @@ class trainer:
                     self.optimizer.step()
                 else:
                     show = 1
+                    target = target[:show].expand(-1, 3, -1, -1)
                     output_spn = output[-1][:show].expand(-1, 3, -1, -1)
                     output_spn1 = output[0][:show].expand(-1, 3, -1, -1)
                     output_spn2 = output[1][:show].expand(-1, 3, -1, -1)
@@ -165,7 +166,7 @@ class trainer:
                     output_spn5 = output[4][:show].expand(-1, 3, -1, -1)
                     self.output_list = torch.cat((self.output_list,
                                                   inpu[:show],
-                                                  target[:show],
+                                                  target,
                                                   output_spn1, output_spn2, output_spn3,
                                                   output_spn4, output_spn5, output_spn), 0)
 
