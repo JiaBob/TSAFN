@@ -24,7 +24,7 @@ class SplitData:
                 break  # only retrieve one level
 
             assert not (self.name - check_folder), 'folder name must be same as declared in self.name'
-            assert sum(split_ratio.values()) == 1, 'the summation of values in split_ratio must be one'
+            #assert sum(split_ratio.values()) == 1, 'the summation of values in split_ratio must be one'
 
             self.total = len(self.category['input'])
 

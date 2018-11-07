@@ -234,6 +234,7 @@ class trainer:
         return epoch_loss
 
     def combination_one_iter(self, data_loader):
+        n = 0
         loss_sum = 0
         loss_spn_sum = 0
         loss_tpn_sum = 0
@@ -260,21 +261,23 @@ class trainer:
                     loss.backward()
                     self.optimizer.step()
                 else:  # only visualize validation data
-                    show = 1  # show the first one of each mini-batch
-                    output_spn = output_spn[-1][:show].expand(-1, 3, -1, -1)
-                    output_spn1 = output_spn[0][:show].expand(-1, 3, -1, -1)
-                    output_spn2 = output_spn[1][:show].expand(-1, 3, -1, -1)
-                    output_spn3 = output_spn[2][:show].expand(-1, 3, -1, -1)
-                    output_spn4 = output_spn[3][:show].expand(-1, 3, -1, -1)
-                    output_spn5 = output_spn[4][:show].expand(-1, 3, -1, -1)
-                    output_tpn = output_tpn.expand(-1, 3, -1, -1)
-                    self.output_list = torch.cat((self.output_list,
-                                                  inpu[:show],
-                                                  target_tsafn,
-                                                  output_tsafn,
-                                                  output_spn1, output_spn2, output_spn3,
-                                                  output_spn4, output_spn5, output_spn,
-                                                  output_tpn), 0)
+                    if n < 8:
+                        n += 1
+                        show = 1  # show the first one of each mini-batch
+                        output_spn0 = output_spn[-1][:show].expand(-1, 3, -1, -1)
+                        output_spn1 = output_spn[0][:show].expand(-1, 3, -1, -1)
+                        output_spn2 = output_spn[1][:show].expand(-1, 3, -1, -1)
+                        output_spn3 = output_spn[2][:show].expand(-1, 3, -1, -1)
+                        output_spn4 = output_spn[3][:show].expand(-1, 3, -1, -1)
+                        output_spn5 = output_spn[4][:show].expand(-1, 3, -1, -1)
+                        output_tpn = output_tpn[:show].expand(-1, 3, -1, -1)
+                        self.output_list = torch.cat((self.output_list,
+                                                      inpu[:show],
+                                                      target_tsafn[:show],
+                                                      output_tsafn[:show],
+                                                      output_spn1, output_spn2, output_spn3,
+                                                      output_spn4, output_spn5, output_spn0,
+                                                      output_tpn), 0)
                     print('validation MSE loss is {}'.format(loss_tsafn))
 
             loss_spn_sum += loss_spn.item()

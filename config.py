@@ -15,5 +15,5 @@ default_lr = 1e-3
 default_path = '../data'
 default_numloader = 8
 default_samples = 30000
-default_batch_size = (100, 60)
+default_batch_size = (100, 150)
 default_random_crop_size = (64, 64)
