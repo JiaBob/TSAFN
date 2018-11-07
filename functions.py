@@ -104,13 +104,14 @@ class trainer:
             visualize(loss_dict, epoch, mode='scalar_dict')
 
             img_dict = {'{} results'.format(self.model_name): self.output_list}
+
             if self.model_name == 'all':
-                visualize(img_dict, epoch, mode='image', nrow=5)
+                nrow = 10
             else:
-                visualize(img_dict, epoch, mode='image', nrow=3)
+                nrow = 3
+            visualize(img_dict, epoch, mode='image', nrow=nrow)
 
-
-        self.test()
+        self.test_unknown('./test')
 
     def tpn_one_iter(self, data_loader):
         loss_sum = 0
@@ -154,9 +155,50 @@ class trainer:
                     self.optimizer.step()
                 else:
                     show = 1
-                    temp_target = target[:show].expand(-1, 3, -1, -1)
-                    temp_output = output[-1][:show].expand(-1, 3, -1, -1)
-                    self.output_list = torch.cat((self.output_list, inpu[:show], temp_target, temp_output), 0)
+                    output_spn = output[-1].expand(-1, 3, -1, -1)
+                    output_spn1 = output[0].expand(-1, 3, -1, -1)
+                    output_spn2 = output[1].expand(-1, 3, -1, -1)
+                    output_spn3 = output[2].expand(-1, 3, -1, -1)
+                    output_spn4 = output[3].expand(-1, 3, -1, -1)
+                    output_spn5 = output[4].expand(-1, 3, -1, -1)
+                    self.output_list = torch.cat((self.output_list,
+                                                  inpu[:show],
+                                                  target[:show],
+                                                  output_spn1[:show], output_spn2[:show], output_spn3[:show],
+                                                  output_spn4[:show], output_spn5[:show], output_spn[:show]), 0)
+
+            loss_sum += loss.item()
+        self.is_train = not self.is_train  # reverse mode
+        epoch_loss = loss_sum / len(data_loader)
+        return epoch_loss
+
+    def spn_one_iter2(self, data_loader):
+        loss_sum = 0
+        for x in data_loader:
+            if self.is_train:
+                self.optimizer.zero_grad()
+            with torch.set_grad_enabled(self.is_train):
+                inpu = x['input'].to(device)
+                target = x['TPN'].to(device)
+                output = self.model(inpu)
+
+                loss = spn_loss(*output, target).to(device)
+                if self.is_train:
+                    loss.backward()
+                    self.optimizer.step()
+                else:
+                    show = 1
+                    output_spn = output[-1].expand(-1, 3, -1, -1)
+                    output_spn1 = output[0].expand(-1, 3, -1, -1)
+                    output_spn2 = output[1].expand(-1, 3, -1, -1)
+                    output_spn3 = output[2].expand(-1, 3, -1, -1)
+                    output_spn4 = output[3].expand(-1, 3, -1, -1)
+                    output_spn5 = output[4].expand(-1, 3, -1, -1)
+                    self.output_list = torch.cat((self.output_list,
+                                                  inpu[:show],
+                                                  target[:show],
+                                                  output_spn1[:show], output_spn2[:show], output_spn3[:show],
+                                                  output_spn4[:show], output_spn5[:show], output_spn[:show]), 0)
 
             loss_sum += loss.item()
         self.is_train = not self.is_train  # reverse mode
@@ -216,9 +258,20 @@ class trainer:
                 else:  # only visualize validation data
                     show = 1  # show the first one of each mini-batch
                     output_spn = output_spn[-1].expand(-1, 3, -1, -1)
+                    output_spn1 = output_spn[0].expand(-1, 3, -1, -1)
+                    output_spn2 = output_spn[1].expand(-1, 3, -1, -1)
+                    output_spn3 = output_spn[2].expand(-1, 3, -1, -1)
+                    output_spn4 = output_spn[3].expand(-1, 3, -1, -1)
+                    output_spn5 = output_spn[4].expand(-1, 3, -1, -1)
                     output_tpn = output_tpn.expand(-1, 3, -1, -1)
-                    self.output_list = torch.cat((self.output_list, inpu[:show], target_tsafn[:show], output_tsafn[:show],
-                                                  output_spn[:show], output_tpn[:show]), 0)
+                    self.output_list = torch.cat((self.output_list,
+                                                  inpu[:show],
+                                                  target_tsafn[:show],
+                                                  output_tsafn[:show],
+                                                  output_spn1[:show], output_spn2[:show], output_spn3[:show],
+                                                  output_spn4[:show], output_spn5[:show], output_spn[:show],
+                                                  output_tpn[:show]), 0)
+                    print('validation MSE loss is {}'.format(loss_tsafn))
 
             loss_spn_sum += loss_spn.item()
             loss_tpn_sum += loss_tpn.item()
@@ -244,11 +297,13 @@ class trainer:
         for i, inpu in enumerate(self.unknown_loader):
             output = self.model(inpu)
 
-            if  self.model_name == 'tsafn':
+            if self.model_name == 'tsafn':
                 utils.save_image(output, './unknown/{}.jpg'.format(i))
             elif self.model_name == 'spn':
                 utils.save_image(output[-1], './unknown/{}.jpg'.format(i))  # only need the final output
             elif self.model_name == 'all':
+                output_dict = {'test_unknown': output}
+                visualize(output_dict, 1, mode='image', nrow=3)
                 utils.save_image(output[0][-1], './unknown/{}spn.jpg'.format(i))  # only need the final output
                 utils.save_image(output[1], './unknown/{}tpn.jpg'.format(i))  # only need the final output
                 utils.save_image(output[2], './unknown/{}tsafn.jpg'.format(i))  # only need the final output
