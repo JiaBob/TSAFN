@@ -188,6 +188,7 @@ class trainer:
                     self.optimizer.step()
                 else:
                     show = 1
+                    target = target.expand(-1, 3, -1, -1)
                     output_spn = output[-1].expand(-1, 3, -1, -1)
                     output_spn1 = output[0].expand(-1, 3, -1, -1)
                     output_spn2 = output[1].expand(-1, 3, -1, -1)
