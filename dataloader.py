@@ -99,7 +99,7 @@ class SmoothData(Dataset):
 
             inpu = transforms.functional.resize(inpu, rescale_size)
             inpu = transforms.ToTensor()(inpu)
-            return inpu
+            return inpu[:3]
 
         else:
             inpu = Image.open(self.dataset[i][0])

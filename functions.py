@@ -298,6 +298,7 @@ class trainer:
         print('Final test loss is {}'.format(self.test_loss))
 
     def test_unknown(self, path):
+        print('start processing unknown data')
         self.data = SplitData(path, unknown=True)
         self.unknown_loader = DataLoader(self.data('unknown'), batch_size=1, num_workers=self.numloader)
         amount = len(self.unknown_loader)
@@ -309,7 +310,9 @@ class trainer:
             elif self.model_name == 'spn':
                 utils.save_image(output[-1], './unknown/{}.jpg'.format(i))  # only need the final output
             elif self.model_name == 'all':
-                output_dict = {'test_unknown': output}
+                output_spn = output[0].expand(-1, 3, -1, -1)
+                output_tpn = output[1].expand(-1, 3, -1, -1)
+                output_dict = {'test_unknown': torch.cat((output_spn, output_tpn, output[2]), 0)}
                 visualize(output_dict, 1, mode='image', nrow=3)
                 utils.save_image(output[0][-1], './unknown/{}spn.jpg'.format(i))  # only need the final output
                 utils.save_image(output[1], './unknown/{}tpn.jpg'.format(i))  # only need the final output
