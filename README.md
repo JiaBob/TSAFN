@@ -5,7 +5,7 @@ This network contains three sub-models, which are TPN, SPN and TSAFN. Correspond
 
 [Lu, K., You, S., & Barnes, N. (2018, September). Deep Texture and Structure Aware Filtering Network for Image Smoothing. In Proceedings of the European Conference on Computer Vision (ECCV) (pp. 217-233).](http://openaccess.thecvf.com/content_ECCV_2018/papers/Kaiyue_Lu_Deep_Texture_and_ECCV_2018_paper.pdf)
 
-Be carefult that, to fully functionize the model, user must create their own dataset based on the description from the paper. The dataset is quite rigirous due to generalization problems. Thus, when making the dataset, please always think about if the data will make the model overfitting to the object rather than generalize on the strucure and texture.
+Be carefult that, to fully functionize the model, user must create their own dataset based on the description from the paper. The dataset is quite rigirous due to generalization problems. Thus, when making the dataset, please always think about if the data will make the model overfitting to the object rather than generalize on the strucure and texture. If so, replace them!
 
 
 The so-called SPN is same as HED which comes from paper:
